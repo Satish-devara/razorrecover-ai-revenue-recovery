@@ -28,6 +28,16 @@ public class ApiExceptionHandler {
         return error(HttpStatus.CONFLICT, "INVALID_STATE", exception.getMessage(), Map.of());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> badRequest(IllegalArgumentException exception) {
+        return error(
+                HttpStatus.BAD_REQUEST,
+                "BAD_REQUEST",
+                exception.getMessage(),
+                Map.of()
+        );
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> validation(MethodArgumentNotValidException exception) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();

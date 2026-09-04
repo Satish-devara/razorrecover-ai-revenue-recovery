@@ -5,6 +5,10 @@ spring:
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -16,6 +20,21 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:razorrecover-backend}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.razorrecover.event"
 
 server:
   port: ${BACKEND_PORT:8080}
@@ -33,3 +52,8 @@ recovery:
   max-retries: ${RECOVERY_MAX_RETRIES:3}
   recovery-window: ${RECOVERY_WINDOW:24h}
   cooldown: ${RECOVERY_COOLDOWN:5m}
+
+razorpay:
+  enabled: ${RAZORPAY_ENABLED:false}
+  key-id: ${RAZORPAY_KEY_ID:}
+  key-secret: ${RAZORPAY_KEY_SECRET:}

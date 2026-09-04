@@ -2,9 +2,11 @@ package com.razorrecover.api;
 
 import com.razorrecover.dto.CreatePaymentRequest;
 import com.razorrecover.dto.PaymentAttemptResponse;
+import com.razorrecover.dto.RazorpayPaymentVerificationRequest;
 import com.razorrecover.dto.PaymentResponse;
 import com.razorrecover.dto.SimulateFailureRequest;
 import com.razorrecover.payment.PaymentService;
+import com.razorrecover.payment.razorpay.RazorpayOrderService;
 import com.razorrecover.support.OperationContext;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -36,6 +38,13 @@ public class PaymentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.create(request, OperationContext.from(idempotencyKey)));
     }
 
+    @PostMapping("/{paymentId}/razorpay-order")
+    public RazorpayOrderService.RazorpayOrderResponse createRazorpayOrder(
+            @PathVariable UUID paymentId) {
+
+        return paymentService.createRazorpayOrder(paymentId);
+    }
+
     @GetMapping
     public List<PaymentResponse> list() {
         return paymentService.list();
@@ -59,6 +68,14 @@ public class PaymentController {
             @PathVariable UUID paymentId,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         return paymentService.retry(paymentId, OperationContext.from(idempotencyKey));
+    }
+
+    @PostMapping("/{paymentId}/razorpay/verify")
+    public PaymentResponse verifyRazorpayPayment(
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody RazorpayPaymentVerificationRequest request) {
+
+        return paymentService.verifyRazorpayPayment(paymentId, request);
     }
 
     @GetMapping("/{paymentId}/attempts")

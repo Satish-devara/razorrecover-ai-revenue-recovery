@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/razorrecover
+    username: razorrecover
+    password: razorrecover_dev
+
+  kafka:
+    listener:
+      auto-startup: false
+
+razorpay:
+  enabled: false
