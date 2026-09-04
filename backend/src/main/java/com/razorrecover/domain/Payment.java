@@ -86,7 +86,8 @@ public class Payment extends BaseEntity {
         payment.currency = currency;
         payment.status = PaymentStatus.PENDING;
         payment.simulationScenario = simulationScenario;
-        return payment;
+        payment.recoveryExpiresAt = Instant.now().plusSeconds(24 * 60 * 60);
+       return payment;
     }
 
     public void setSimulationScenario(SimulationScenario simulationScenario) {

@@ -85,4 +85,27 @@ public class RecoveryCase extends BaseEntity {
     public Instant getClosedAt() {
         return closedAt;
     }
+    public void markRetryPending() {
+    if (status.isTerminal()) {
+        throw new IllegalStateException("Cannot retry a terminal recovery case");
+    }
+
+    status = RecoveryCaseStatus.RETRY_PENDING;
+    retryCount++;
+}
+
+public void markRecovered() {
+    status = RecoveryCaseStatus.RECOVERED;
+    closedAt = Instant.now();
+}
+
+public void markEscalated() {
+    status = RecoveryCaseStatus.ESCALATED;
+    closedAt = Instant.now();
+}
+
+public void markStopped() {
+    status = RecoveryCaseStatus.STOPPED;
+    closedAt = Instant.now();
+}
 }

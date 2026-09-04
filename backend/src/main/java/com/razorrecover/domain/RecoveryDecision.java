@@ -1,6 +1,7 @@
 package com.razorrecover.domain;
 
 import com.razorrecover.domain.enums.RecoveryAction;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -44,6 +46,28 @@ public class RecoveryDecision extends BaseEntity {
     private String outcome;
 
     protected RecoveryDecision() {
+    }
+
+    public static RecoveryDecision create(
+            RecoveryCase recoveryCase,
+            RecoveryAction recommendedAction,
+            RecoveryAction finalAction,
+            BigDecimal confidence,
+            String explanation,
+            String safetyCheckSummary,
+            String outcome) {
+
+        RecoveryDecision decision = new RecoveryDecision();
+
+        decision.recoveryCase = recoveryCase;
+        decision.recommendedAction = recommendedAction;
+        decision.finalAction = finalAction;
+        decision.confidence = confidence;
+        decision.explanation = explanation;
+        decision.safetyCheckSummary = safetyCheckSummary;
+        decision.outcome = outcome;
+
+        return decision;
     }
 
     public RecoveryAction getRecommendedAction() {

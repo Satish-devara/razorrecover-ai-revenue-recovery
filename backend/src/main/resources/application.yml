@@ -29,3 +29,7 @@ management:
     health:
       probes:
         enabled: true
+recovery:
+  max-retries: ${RECOVERY_MAX_RETRIES:3}
+  recovery-window: ${RECOVERY_WINDOW:24h}
+  cooldown: ${RECOVERY_COOLDOWN:5m}
