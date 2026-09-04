@@ -45,4 +45,28 @@ public class RecoveryDecision extends BaseEntity {
 
     protected RecoveryDecision() {
     }
+
+    public RecoveryAction getRecommendedAction() {
+        return recommendedAction;
+    }
+
+    public RecoveryAction getFinalAction() {
+        return finalAction;
+    }
+
+    public BigDecimal getConfidence() {
+        return confidence;
+    }
+
+    public String getExplanation() {
+        return explanation;
+    }
+
+    public String getSafetyCheckSummary() {
+        return safetyCheckSummary;
+    }
+
+    public String getOutcome() {
+        return outcome;
+    }
 }

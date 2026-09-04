@@ -12,6 +12,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "recovery_cases")
@@ -49,5 +50,39 @@ public class RecoveryCase extends BaseEntity {
     }
 
     protected RecoveryCase() {
+    }
+
+    public static RecoveryCase open(Payment payment, Merchant merchant) {
+        RecoveryCase recoveryCase = new RecoveryCase();
+        recoveryCase.payment = payment;
+        recoveryCase.merchant = merchant;
+        recoveryCase.correlationId = payment.getId().toString();
+        recoveryCase.status = RecoveryCaseStatus.OPEN;
+        recoveryCase.openedAt = Instant.now();
+        return recoveryCase;
+    }
+
+    public Payment getPayment() {
+        return payment;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
+    public RecoveryCaseStatus getStatus() {
+        return status;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public Instant getOpenedAt() {
+        return openedAt;
+    }
+
+    public Instant getClosedAt() {
+        return closedAt;
     }
 }

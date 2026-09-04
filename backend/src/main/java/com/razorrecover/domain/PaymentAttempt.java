@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import com.razorrecover.payment.provider.PaymentExecutionResult;
 
 @Entity
 @Table(name = "payment_attempts")
@@ -51,5 +52,40 @@ public class PaymentAttempt extends BaseEntity {
     }
 
     protected PaymentAttempt() {
+    }
+
+    public static PaymentAttempt create(
+            Payment payment,
+            int attemptNumber,
+            AttemptTriggerType triggerType,
+            PaymentExecutionResult result) {
+        PaymentAttempt attempt = new PaymentAttempt();
+        attempt.payment = payment;
+        attempt.attemptNumber = attemptNumber;
+        attempt.triggerType = triggerType;
+        attempt.status = result.successful() ? PaymentAttemptStatus.SUCCEEDED : PaymentAttemptStatus.FAILED;
+        attempt.failureReason = result.failureReason();
+        attempt.attemptedAt = Instant.now();
+        return attempt;
+    }
+
+    public int getAttemptNumber() {
+        return attemptNumber;
+    }
+
+    public AttemptTriggerType getTriggerType() {
+        return triggerType;
+    }
+
+    public PaymentAttemptStatus getStatus() {
+        return status;
+    }
+
+    public PaymentFailureReason getFailureReason() {
+        return failureReason;
+    }
+
+    public Instant getAttemptedAt() {
+        return attemptedAt;
     }
 }

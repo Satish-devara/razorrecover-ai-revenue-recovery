@@ -2,6 +2,7 @@ package com.razorrecover.domain;
 
 import com.razorrecover.domain.enums.PaymentFailureReason;
 import com.razorrecover.domain.enums.PaymentStatus;
+import com.razorrecover.domain.enums.SimulationScenario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -44,6 +45,10 @@ public class Payment extends BaseEntity {
     @Column(name = "failure_reason", length = 80)
     private PaymentFailureReason failureReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "simulation_scenario", nullable = false, length = 80)
+    private SimulationScenario simulationScenario;
+
     @Column(name = "failed_at")
     private Instant failedAt;
 
@@ -66,5 +71,80 @@ public class Payment extends BaseEntity {
     }
 
     protected Payment() {
+    }
+
+    public static Payment create(
+            Merchant merchant,
+            String providerPaymentId,
+            BigDecimal amount,
+            String currency,
+            SimulationScenario simulationScenario) {
+        Payment payment = new Payment();
+        payment.merchant = merchant;
+        payment.providerPaymentId = providerPaymentId;
+        payment.amount = amount;
+        payment.currency = currency;
+        payment.status = PaymentStatus.PENDING;
+        payment.simulationScenario = simulationScenario;
+        return payment;
+    }
+
+    public void setSimulationScenario(SimulationScenario simulationScenario) {
+        if (status != PaymentStatus.PENDING) {
+            throw new IllegalStateException("Only a pending payment can be assigned a simulation scenario");
+        }
+        this.simulationScenario = simulationScenario;
+    }
+
+    public void applyAttemptResult(boolean successful, PaymentFailureReason reason) {
+        if (successful) {
+            status = PaymentStatus.SUCCEEDED;
+            failureReason = null;
+        } else {
+            status = PaymentStatus.FAILED;
+            failureReason = reason;
+            failedAt = Instant.now();
+        }
+        updatedAt = Instant.now();
+    }
+
+    public PaymentStatus getStatus() {
+        return status;
+    }
+
+    public Merchant getMerchant() {
+        return merchant;
+    }
+
+    public String getProviderPaymentId() {
+        return providerPaymentId;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public PaymentFailureReason getFailureReason() {
+        return failureReason;
+    }
+
+    public SimulationScenario getSimulationScenario() {
+        return simulationScenario;
+    }
+
+    public Instant getFailedAt() {
+        return failedAt;
+    }
+
+    public Instant getRecoveryExpiresAt() {
+        return recoveryExpiresAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 }

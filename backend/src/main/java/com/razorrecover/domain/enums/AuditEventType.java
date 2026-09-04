@@ -1,0 +1,11 @@
+package com.razorrecover.domain.enums;
+
+public enum AuditEventType {
+    PAYMENT_CREATED,
+    PAYMENT_SUCCEEDED,
+    PAYMENT_FAILED,
+    RECOVERY_CASE_CREATED,
+    PAYMENT_RETRY_ATTEMPTED,
+    PAYMENT_RECOVERED,
+    PAYMENT_RETRY_FAILED
+}

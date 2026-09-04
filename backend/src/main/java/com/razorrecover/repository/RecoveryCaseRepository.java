@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RecoveryCaseRepository extends JpaRepository<RecoveryCase, UUID> {
     Optional<RecoveryCase> findByCorrelationId(String correlationId);
+
+    Optional<RecoveryCase> findByPaymentId(UUID paymentId);
 }

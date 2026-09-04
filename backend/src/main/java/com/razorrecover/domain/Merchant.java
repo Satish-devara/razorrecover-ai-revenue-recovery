@@ -23,4 +23,16 @@ public class Merchant extends BaseEntity {
 
     protected Merchant() {
     }
+
+    public static Merchant createDemoMerchant() {
+        Merchant merchant = new Merchant();
+        merchant.name = "RazorRecover Demo Merchant";
+        merchant.externalReference = "demo-merchant";
+        merchant.maxAutomaticRecoveryAmount = new BigDecimal("100000.00");
+        return merchant;
+    }
+
+    public String getExternalReference() {
+        return externalReference;
+    }
 }

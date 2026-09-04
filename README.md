@@ -2,7 +2,7 @@
 
 RazorRecover is an autonomous, bounded payment-recovery platform for the Razorpay AI Buildathon. It identifies recoverable failed payments, retrieves merchant policy, recommends a constrained action, validates deterministic safety rules, executes through a payment-provider adapter, and records an auditable outcome.
 
-> Status: Phase 2 — Spring Boot persistence foundation. The database schema, JPA domain model, repositories, DTO boundaries, and health endpoint are implemented. Recovery workflows, provider simulation, AI, events, and dashboard are not implemented yet.
+> Status: Phase 3 — deterministic payment simulator and REST APIs. Payment attempts, explicit recovery cases, and structured audit events are implemented locally. Bounded recovery rules, events, AI, and dashboard are not implemented yet.
 
 ## Problem
 
@@ -27,6 +27,8 @@ flowchart LR
 ```
 
 See [architecture documentation](docs/architecture.md) for component boundaries and [agent workflow](docs/agent-workflow.md) for the planned controlled state machine.
+
+The current simulator API is documented in [docs/api.md](docs/api.md).
 
 ## Repository layout
 

@@ -41,4 +41,46 @@ public class AuditEvent extends BaseEntity {
 
     protected AuditEvent() {
     }
+
+    public static AuditEvent create(
+            String correlationId,
+            String aggregateType,
+            UUID aggregateId,
+            String eventType,
+            String actor,
+            String payload) {
+        AuditEvent event = new AuditEvent();
+        event.correlationId = correlationId;
+        event.aggregateType = aggregateType;
+        event.aggregateId = aggregateId;
+        event.eventType = eventType;
+        event.actor = actor;
+        event.payload = payload;
+        event.occurredAt = Instant.now();
+        return event;
+    }
+
+    public UUID getAggregateId() {
+        return aggregateId;
+    }
+
+    public String getAggregateType() {
+        return aggregateType;
+    }
+
+    public String getEventType() {
+        return eventType;
+    }
+
+    public String getActor() {
+        return actor;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public Instant getOccurredAt() {
+        return occurredAt;
+    }
 }
