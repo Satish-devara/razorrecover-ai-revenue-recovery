@@ -1,0 +1,6 @@
+package com.razorrecover.domain.enums;
+
+public enum PaymentFailureReason {
+    TEMPORARY_NETWORK_ERROR, TIMEOUT, BANK_UNAVAILABLE, PAYMENT_METHOD_ISSUE,
+    INSUFFICIENT_FUNDS, ABANDONED, PERMANENT_FAILURE
+}

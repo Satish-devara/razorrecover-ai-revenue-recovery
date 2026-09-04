@@ -31,9 +31,10 @@ services:
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_KRAFT_CLUSTER_ID: ${KAFKA_KRAFT_CLUSTER_ID:?Set KAFKA_KRAFT_CLUSTER_ID in .env}
+      # Development-only default; override when Kafka is enabled in a later phase.
+      KAFKA_KRAFT_CLUSTER_ID: ${KAFKA_KRAFT_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
     ports:
-      - "${KAFKA_PORT:?Set KAFKA_PORT in .env}:9092"
+      - "${KAFKA_PORT:-9092}:9092"
     volumes:
       - kafka-data:/bitnami/kafka
     networks: [razorrecover]
@@ -41,7 +42,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "${REDIS_PORT:?Set REDIS_PORT in .env}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
