@@ -210,13 +210,21 @@ function App() {
         )
       : 0;
 
-  const recentCases = [...recoveryCases]
-    .sort(
-      (a, b) =>
-        new Date(b.openedAt).getTime() -
-        new Date(a.openedAt).getTime()
-    )
-    .slice(0, 8);
+const recentCases = [...recoveryCases]
+  .sort((a, b) => {
+    const aIsRecovered = a.status === "RECOVERED" ? 1 : 0;
+    const bIsRecovered = b.status === "RECOVERED" ? 1 : 0;
+
+    if (aIsRecovered !== bIsRecovered) {
+      return bIsRecovered - aIsRecovered;
+    }
+
+    return (
+      new Date(b.openedAt).getTime() -
+      new Date(a.openedAt).getTime()
+    );
+  })
+  .slice(0, 8);
 
   const selectedPayment = selectedCase
     ? payments.find(
