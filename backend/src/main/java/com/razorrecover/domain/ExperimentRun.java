@@ -3,12 +3,11 @@ package com.razorrecover.domain;
 import com.razorrecover.domain.enums.ExperimentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+
 import java.time.Instant;
 
 @Entity
@@ -31,8 +30,8 @@ public class ExperimentRun extends BaseEntity {
     @Column(name = "random_seed", nullable = false)
     private long randomSeed;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
     private ExperimentStatus status;
 
     @Column(name = "metrics_summary", columnDefinition = "text")
@@ -45,5 +44,69 @@ public class ExperimentRun extends BaseEntity {
     private Instant completedAt;
 
     protected ExperimentRun() {
+    }
+
+    public static ExperimentRun create(
+            String name,
+            String strategyVersion,
+            int datasetSize,
+            long randomSeed) {
+
+        ExperimentRun run = new ExperimentRun();
+        run.name = name;
+        run.strategyVersion = strategyVersion;
+        run.datasetSize = datasetSize;
+        run.randomSeed = randomSeed;
+        run.status = ExperimentStatus.CREATED;
+        return run;
+    }
+
+    public void markRunning() {
+        this.status = ExperimentStatus.RUNNING;
+        this.startedAt = Instant.now();
+    }
+
+    public void markCompleted(String metricsSummary) {
+        this.status = ExperimentStatus.COMPLETED;
+        this.metricsSummary = metricsSummary;
+        this.completedAt = Instant.now();
+    }
+
+    public void markFailed(String metricsSummary) {
+        this.status = ExperimentStatus.FAILED;
+        this.metricsSummary = metricsSummary;
+        this.completedAt = Instant.now();
+    }
+
+    public ExperimentStatus getStatus() {
+        return status;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getStrategyVersion() {
+        return strategyVersion;
+    }
+
+    public int getDatasetSize() {
+        return datasetSize;
+    }
+
+    public long getRandomSeed() {
+        return randomSeed;
+    }
+
+    public String getMetricsSummary() {
+        return metricsSummary;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
     }
 }

@@ -22,6 +22,13 @@ public class PaymentProviderSelector implements PaymentProvider {
 
     @Override
     public PaymentExecutionResult executeAttempt(PaymentProviderRequest request) {
+
+        // Simulation scenarios must always use the deterministic simulator.
+        if (request.scenario() != null) {
+            return simulationProvider.executeAttempt(request);
+        }
+
+        // Real Razorpay execution is used only when no simulation scenario is provided.
         if (properties.isEnabled()) {
             return razorpayProvider.executeAttempt(request);
         }

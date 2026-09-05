@@ -1,8 +1,6 @@
 package com.razorrecover.event;
 
 import com.razorrecover.recovery.RecoveryCaseService;
-import com.razorrecover.recovery.RecoveryEngine;
-import com.razorrecover.support.OperationContext;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -10,14 +8,11 @@ import org.springframework.stereotype.Component;
 public class PaymentFailedEventConsumer {
 
     private final RecoveryCaseService recoveryCaseService;
-    private final RecoveryEngine recoveryEngine;
 
     public PaymentFailedEventConsumer(
-            RecoveryCaseService recoveryCaseService,
-            RecoveryEngine recoveryEngine) {
+            RecoveryCaseService recoveryCaseService) {
 
         this.recoveryCaseService = recoveryCaseService;
-        this.recoveryEngine = recoveryEngine;
     }
 
     @KafkaListener(
@@ -36,18 +31,12 @@ public class PaymentFailedEventConsumer {
         /*
          * Kafka may replay an older payment.failed event.
          *
-         * If the recovery case is already terminal, there is
-         * nothing left to recover. Treat the event as successfully
-         * handled instead of throwing an exception and causing
-         * Kafka to retry the same message.
+         * The recovery case is created here, but the actual
+         * recovery decision is delegated to the AI recovery
+         * service and then validated by the Java safety layer.
          */
         if (recoveryCase.status().isTerminal()) {
             return;
         }
-
-        recoveryEngine.evaluate(
-                recoveryCase.id(),
-                OperationContext.from(null)
-        );
     }
 }

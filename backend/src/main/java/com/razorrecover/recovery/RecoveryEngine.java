@@ -403,4 +403,153 @@ public class RecoveryEngine {
                 outcome
         );
     }
+
+
+    @Transactional
+    public RecoveryDecisionResponse evaluateAiDecision(
+            UUID recoveryCaseId,
+            RecoveryAction recommendedAction,
+            double confidence,
+            String reason,
+            String policyId,
+            OperationContext context) {
+
+        String idempotencyKey = context.idempotencyKey();
+
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            var existingResult = idempotencyService.get(idempotencyKey);
+
+            if (existingResult.isPresent()) {
+                throw new InvalidStateException(
+                        "Duplicate recovery operation: idempotency key already used"
+                );
+            }
+        }
+
+        RecoveryCase recoveryCase =
+                recoveryCaseRepository.findById(recoveryCaseId)
+                        .orElseThrow(() ->
+                                new NotFoundException(
+                                        "Recovery case",
+                                        recoveryCaseId
+                                ));
+
+        Payment payment = recoveryCase.getPayment();
+
+        RecoverySafetyValidator.ValidationResult safetyResult =
+                safetyValidator.validate(
+                        recoveryCase,
+                        payment,
+                        recommendedAction,
+                        Instant.now()
+                );
+
+        RecoveryAction finalAction = recommendedAction;
+        String outcome;
+
+        if (!safetyResult.allowed()) {
+
+            finalAction = RecoveryAction.STOP;
+            outcome = "BLOCKED";
+
+            auditService.record(
+                    recoveryCase.getCorrelationId(),
+                    "RECOVERY_CASE",
+                    recoveryCase.getId(),
+                    AuditEventType.RECOVERY_RETRY_BLOCKED,
+                    Map.of(
+                            "recommendedAction", recommendedAction.name(),
+                            "finalAction", finalAction.name(),
+                            "reasonCode", safetyResult.code(),
+                            "policyId", policyId
+                    )
+            );
+
+        } else if (recommendedAction == RecoveryAction.RETRY_PAYMENT) {
+
+            recoveryCase.markRetryPending();
+            recoveryCaseRepository.save(recoveryCase);
+
+            paymentService.retry(
+                    payment.getId(),
+                    context
+            );
+
+            Payment refreshedPayment = recoveryCase.getPayment();
+
+            if (refreshedPayment.getStatus() == PaymentStatus.SUCCEEDED) {
+                recoveryCase.markRecovered();
+                outcome = "RECOVERED";
+            } else {
+                outcome = "RETRY_FAILED";
+            }
+
+            recoveryCaseRepository.save(recoveryCase);
+
+        } else if (recommendedAction == RecoveryAction.REQUEST_CUSTOMER_ACTION) {
+
+            recoveryCase.markEscalated();
+            recoveryCaseRepository.save(recoveryCase);
+
+            outcome = "CUSTOMER_ACTION_REQUIRED";
+
+        } else {
+
+            recoveryCase.markEscalated();
+            recoveryCaseRepository.save(recoveryCase);
+
+            outcome = "ESCALATED";
+        }
+
+        RecoveryDecision decision = RecoveryDecision.create(
+                recoveryCase,
+                recommendedAction,
+                finalAction,
+                BigDecimal.valueOf(confidence),
+                reason,
+                safetyResult.code() + ": " + safetyResult.message(),
+                outcome
+        );
+
+        recoveryDecisionRepository.save(decision);
+
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            boolean claimed = idempotencyService.claim(
+                    idempotencyKey,
+                    decision.getId().toString()
+            );
+
+            if (!claimed) {
+                throw new InvalidStateException(
+                        "Duplicate recovery operation: idempotency key already used"
+                );
+            }
+        }
+
+        auditService.record(
+                recoveryCase.getCorrelationId(),
+                "RECOVERY_CASE",
+                recoveryCase.getId(),
+                AuditEventType.RECOVERY_DECISION_CREATED,
+                Map.of(
+                        "recommendedAction", recommendedAction.name(),
+                        "finalAction", finalAction.name(),
+                        "outcome", outcome,
+                        "safetyCode", safetyResult.code(),
+                        "policyId", policyId,
+                        "source", "AI"
+                )
+        );
+
+        return new RecoveryDecisionResponse(
+                decision.getId(),
+                decision.getRecommendedAction(),
+                decision.getFinalAction(),
+                decision.getConfidence(),
+                decision.getExplanation(),
+                decision.getSafetyCheckSummary(),
+                decision.getOutcome(),
+                decision.getCreatedAt()
+        );
+    }
 }

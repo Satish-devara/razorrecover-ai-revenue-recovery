@@ -19,32 +19,33 @@ import com.razorrecover.repository.RecoveryDecisionRepository;
 import com.razorrecover.support.InvalidStateException;
 import com.razorrecover.support.NotFoundException;
 import com.razorrecover.support.OperationContext;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RecoveryCaseService {
 
-    private final PaymentRepository paymentRepository;
     private final RecoveryCaseRepository recoveryCaseRepository;
     private final RecoveryDecisionRepository recoveryDecisionRepository;
     private final AuditEventRepository auditEventRepository;
+    private final PaymentRepository paymentRepository;
     private final AuditService auditService;
 
     public RecoveryCaseService(
-            PaymentRepository paymentRepository,
             RecoveryCaseRepository recoveryCaseRepository,
             RecoveryDecisionRepository recoveryDecisionRepository,
             AuditEventRepository auditEventRepository,
+            PaymentRepository paymentRepository,
             AuditService auditService) {
 
-        this.paymentRepository = paymentRepository;
         this.recoveryCaseRepository = recoveryCaseRepository;
         this.recoveryDecisionRepository = recoveryDecisionRepository;
         this.auditEventRepository = auditEventRepository;
+        this.paymentRepository = paymentRepository;
         this.auditService = auditService;
     }
 
@@ -53,8 +54,7 @@ public class RecoveryCaseService {
             CreateRecoveryCaseRequest request,
             OperationContext context) {
 
-        Payment payment = paymentRepository
-                .findById(request.paymentId())
+        Payment payment = paymentRepository.findById(request.paymentId())
                 .orElseThrow(() ->
                         new NotFoundException(
                                 "Payment",
@@ -63,81 +63,16 @@ public class RecoveryCaseService {
 
         if (payment.getStatus() != PaymentStatus.FAILED) {
             throw new InvalidStateException(
-                    "A recovery case can only be opened for a failed payment"
+                    "Recovery case can only be opened for a failed payment"
             );
         }
 
-        if (recoveryCaseRepository
-                .findByPaymentId(payment.getId())
-                .isPresent()) {
-
-            throw new InvalidStateException(
-                    "A recovery case already exists for this payment"
-            );
-        }
-
-        RecoveryCase recoveryCase =
-                recoveryCaseRepository.save(
-                        RecoveryCase.open(
-                                payment,
-                                payment.getMerchant()
-                        )
-                );
-
-        auditService.record(
-                recoveryCase.getCorrelationId(),
-                "RECOVERY_CASE",
-                recoveryCase.getId(),
-                AuditEventType.RECOVERY_CASE_CREATED,
-                payload(context)
-        );
-
-        return toResponse(recoveryCase);
-    }
-
-    /**
-     * Creates a recovery case from a Kafka payment.failed event.
-     *
-     * This method is intentionally idempotent:
-     * - If the payment no longer exists, the event is invalid.
-     * - If the payment is no longer FAILED, the event is stale and ignored.
-     * - If a recovery case already exists, return the existing case.
-     * - Otherwise create a new recovery case.
-     */
-    @Transactional
-    public RecoveryCaseResponse createFromPaymentFailure(
-            PaymentFailedEvent event) {
-
-        Payment payment = paymentRepository
-                .findById(event.paymentId())
-                .orElseThrow(() ->
-                        new NotFoundException(
-                                "Payment",
-                                event.paymentId()
-                        ));
-
         /*
-         * The Kafka event may be older than the current payment state.
+         * A payment can have only one recovery case.
          *
-         * Example:
-         *
-         * PAYMENT_FAILED
-         *      ↓
-         * Kafka event
-         *      ↓
-         * payment recovered successfully
-         *      ↓
-         * consumer receives old event
-         *
-         * There is nothing to recover anymore.
-         */
-        if (payment.getStatus() != PaymentStatus.FAILED) {
-            return null;
-        }
-
-        /*
-         * Prevent duplicate recovery cases if multiple
-         * payment.failed events are received for the same payment.
+         * Kafka may already have created the recovery case from
+         * payment.failed. Return the existing case instead of
+         * attempting another INSERT.
          */
         var existingCase =
                 recoveryCaseRepository.findByPaymentId(payment.getId());
@@ -147,52 +82,66 @@ public class RecoveryCaseService {
         }
 
         RecoveryCase recoveryCase =
-                recoveryCaseRepository.save(
-                        RecoveryCase.open(
-                                payment,
-                                payment.getMerchant()
-                        )
+                RecoveryCase.open(
+                        payment,
+                        payment.getMerchant()
                 );
 
+        RecoveryCase saved =
+                recoveryCaseRepository.save(recoveryCase);
+
         auditService.record(
-                recoveryCase.getCorrelationId(),
+                saved.getCorrelationId(),
                 "RECOVERY_CASE",
-                recoveryCase.getId(),
+                saved.getId(),
                 AuditEventType.RECOVERY_CASE_CREATED,
                 Map.of(
-                        "source", "KAFKA",
-                        "event", "payment.failed",
-                        "paymentId", event.paymentId().toString()
+                        "paymentId", payment.getId().toString(),
+                        "source", "API"
                 )
         );
 
-        return toResponse(recoveryCase);
-    }
-
-    @Transactional(readOnly = true)
-    public RecoveryCaseResponse get(UUID recoveryCaseId) {
-        return toResponse(findCase(recoveryCaseId));
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public List<RecoveryCaseResponse> list() {
-        return recoveryCaseRepository
-                .findAll()
+
+        return recoveryCaseRepository.findAll()
                 .stream()
-                .map(RecoveryCaseService::toResponse)
+                .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RecoveryCaseResponse get(UUID recoveryCaseId) {
+
+        RecoveryCase recoveryCase =
+                recoveryCaseRepository.findById(recoveryCaseId)
+                        .orElseThrow(() ->
+                                new NotFoundException(
+                                        "Recovery case",
+                                        recoveryCaseId
+                                ));
+
+        return toResponse(recoveryCase);
     }
 
     @Transactional(readOnly = true)
     public List<RecoveryDecisionResponse> decisions(
             UUID recoveryCaseId) {
 
-        findCase(recoveryCaseId);
+        if (!recoveryCaseRepository.existsById(recoveryCaseId)) {
+            throw new NotFoundException(
+                    "Recovery case",
+                    recoveryCaseId
+            );
+        }
 
         return recoveryDecisionRepository
                 .findByRecoveryCaseIdOrderByCreatedAtAsc(recoveryCaseId)
                 .stream()
-                .map(RecoveryCaseService::toDecisionResponse)
+                .map(this::toDecisionResponse)
                 .toList();
     }
 
@@ -200,51 +149,79 @@ public class RecoveryCaseService {
     public List<AuditEventResponse> auditEvents(
             UUID recoveryCaseId) {
 
-        RecoveryCase recoveryCase = findCase(recoveryCaseId);
+        RecoveryCase recoveryCase =
+                recoveryCaseRepository.findById(recoveryCaseId)
+                        .orElseThrow(() ->
+                                new NotFoundException(
+                                        "Recovery case",
+                                        recoveryCaseId
+                                ));
 
         return auditEventRepository
                 .findByCorrelationIdOrderByOccurredAtAsc(
                         recoveryCase.getCorrelationId()
                 )
                 .stream()
-                .map(RecoveryCaseService::toAuditResponse)
+                .map(this::toAuditResponse)
                 .toList();
     }
 
-    private RecoveryCase findCase(UUID recoveryCaseId) {
+    @Transactional
+    public RecoveryCaseResponse createFromPaymentFailure(
+            PaymentFailedEvent event) {
 
-        return recoveryCaseRepository
-                .findById(recoveryCaseId)
-                .orElseThrow(() ->
-                        new NotFoundException(
-                                "Recovery case",
-                                recoveryCaseId
-                        ));
-    }
+        Payment payment =
+                paymentRepository.findById(event.paymentId())
+                        .orElse(null);
 
-    private static Map<String, Object> payload(
-            OperationContext context) {
-
-        if (context.idempotencyKey() == null
-                || context.idempotencyKey().isBlank()) {
-
-            return Map.of("source", "API");
+        if (payment == null) {
+            return null;
         }
 
-        return Map.of(
-                "source",
-                "API",
-                "idempotencyKey",
-                context.idempotencyKey()
+        /*
+         * Kafka events can be replayed.
+         *
+         * If a recovery case already exists for this payment,
+         * return it instead of creating a duplicate.
+         */
+        var existingCase =
+                recoveryCaseRepository.findByPaymentId(payment.getId());
+
+        if (existingCase.isPresent()) {
+            return toResponse(existingCase.get());
+        }
+
+        RecoveryCase recoveryCase =
+                RecoveryCase.open(
+                        payment,
+                        payment.getMerchant()
+                );
+
+        RecoveryCase saved =
+                recoveryCaseRepository.save(recoveryCase);
+
+        auditService.record(
+                saved.getCorrelationId(),
+                "RECOVERY_CASE",
+                saved.getId(),
+                AuditEventType.RECOVERY_CASE_CREATED,
+                Map.of(
+                        "paymentId", payment.getId().toString(),
+                        "source", "KAFKA"
+                )
         );
+
+        return toResponse(saved);
     }
 
-    private static RecoveryCaseResponse toResponse(
+    private RecoveryCaseResponse toResponse(
             RecoveryCase recoveryCase) {
+
+        Payment payment = recoveryCase.getPayment();
 
         return new RecoveryCaseResponse(
                 recoveryCase.getId(),
-                recoveryCase.getPayment().getId(),
+                payment.getId(),
                 recoveryCase.getCorrelationId(),
                 recoveryCase.getStatus(),
                 recoveryCase.getRetryCount(),
@@ -253,7 +230,7 @@ public class RecoveryCaseService {
         );
     }
 
-    private static RecoveryDecisionResponse toDecisionResponse(
+    private RecoveryDecisionResponse toDecisionResponse(
             RecoveryDecision decision) {
 
         return new RecoveryDecisionResponse(
@@ -268,7 +245,7 @@ public class RecoveryCaseService {
         );
     }
 
-    private static AuditEventResponse toAuditResponse(
+    private AuditEventResponse toAuditResponse(
             AuditEvent event) {
 
         return new AuditEventResponse(

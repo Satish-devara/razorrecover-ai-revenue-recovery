@@ -100,7 +100,7 @@ public class Payment extends BaseEntity {
     public void applyAttemptResult(boolean successful, PaymentFailureReason reason) {
         if (successful) {
             status = PaymentStatus.SUCCEEDED;
-            failureReason = null;
+            // Preserve the original failure reason after a successful recovery.
         } else {
             status = PaymentStatus.FAILED;
             failureReason = reason;
